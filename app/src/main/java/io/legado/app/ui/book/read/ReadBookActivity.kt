@@ -1306,24 +1306,24 @@ class ReadBookActivity : BaseReadBookActivity(),
         when (dialogId) {
             TEXT_COLOR -> {
                 setCurTextColor(color)
-                postEvent(EventBus.UP_CONFIG, arrayOf(2, 9, 11))
+                postEvent(EventBus.UP_CONFIG, arrayListOf(2, 9, 11))
             }
 
             BG_COLOR -> {
                 setCurBg(0, "#${color.hexString}")
-                postEvent(EventBus.UP_CONFIG, arrayOf(1))
+                postEvent(EventBus.UP_CONFIG, arrayListOf(1))
             }
 
             TIP_COLOR -> {
                 ReadTipConfig.tipColor = color
                 postEvent(EventBus.TIP_COLOR, "")
-                postEvent(EventBus.UP_CONFIG, arrayOf(2))
+                postEvent(EventBus.UP_CONFIG, arrayListOf(2))
             }
 
             TIP_DIVIDER_COLOR -> {
                 ReadTipConfig.tipDividerColor = color
                 postEvent(EventBus.TIP_COLOR, "")
-                postEvent(EventBus.UP_CONFIG, arrayOf(2))
+                postEvent(EventBus.UP_CONFIG, arrayListOf(2))
             }
         }
     }
@@ -1377,40 +1377,38 @@ class ReadBookActivity : BaseReadBookActivity(),
 
     /* 全文搜索跳转 */
     private fun skipToSearch(searchResult: SearchResult) {
-        val previousResult = binding.searchMenu.previousSearchResult
-
-        fun jumpToPosition() {
-            val curTextChapter = ReadBook.curTextChapter ?: return
-            binding.searchMenu.updateSearchInfo()
-            val (pageIndex, lineIndex, charIndex, addLine, charIndex2) =
-                viewModel.searchResultPositions(curTextChapter, searchResult)
-            ReadBook.skipToPage(pageIndex) {
-                isSelectingSearchResult = true
-                binding.readView.curPage.selectStartMoveIndex(0, lineIndex, charIndex)
-                when (addLine) {
-                    0 -> binding.readView.curPage.selectEndMoveIndex(
-                        0,
-                        lineIndex,
-                        charIndex + viewModel.searchContentQuery.length - 1
-                    )
-
-                    1 -> binding.readView.curPage.selectEndMoveIndex(
-                        0, lineIndex + 1, charIndex2
-                    )
-                    //consider change page, jump to scroll position
-                    -1 -> binding.readView.curPage.selectEndMoveIndex(1, 0, charIndex2)
-                }
-                binding.readView.isTextSelected = true
-                isSelectingSearchResult = false
-            }
-        }
-
-        if (searchResult.chapterIndex != previousResult?.chapterIndex) {
+        if (searchResult.chapterIndex != ReadBook.durChapterIndex) {
             viewModel.openChapter(searchResult.chapterIndex) {
-                jumpToPosition()
+                jumpToPosition(searchResult)
             }
         } else {
-            jumpToPosition()
+            jumpToPosition(searchResult)
+        }
+    }
+
+    private fun jumpToPosition(searchResult: SearchResult) {
+        val curTextChapter = ReadBook.curTextChapter ?: return
+        binding.searchMenu.updateSearchInfo()
+        val (pageIndex, lineIndex, charIndex, addLine, charIndex2) =
+            viewModel.searchResultPositions(curTextChapter, searchResult)
+        ReadBook.skipToPage(pageIndex) {
+            isSelectingSearchResult = true
+            binding.readView.curPage.selectStartMoveIndex(0, lineIndex, charIndex)
+            when (addLine) {
+                0 -> binding.readView.curPage.selectEndMoveIndex(
+                    0,
+                    lineIndex,
+                    charIndex + viewModel.searchContentQuery.length - 1
+                )
+
+                1 -> binding.readView.curPage.selectEndMoveIndex(
+                    0, lineIndex + 1, charIndex2
+                )
+                //consider change page, jump to scroll position
+                -1 -> binding.readView.curPage.selectEndMoveIndex(1, 0, charIndex2)
+            }
+            binding.readView.isTextSelected = true
+            isSelectingSearchResult = false
         }
     }
 
@@ -1492,7 +1490,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                 ReadBook.readAloud(!BaseReadAloudService.pause)
             }
         }
-        observeEvent<Array<Int>>(EventBus.UP_CONFIG) {
+        observeEvent<ArrayList<Int>>(EventBus.UP_CONFIG) {
             it.forEach { value ->
                 when (value) {
                     0 -> upSystemUiVisibility()
