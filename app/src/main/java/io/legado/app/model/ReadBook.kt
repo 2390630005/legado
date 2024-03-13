@@ -201,7 +201,7 @@ object ReadBook : CoroutineScope by MainScope() {
             val nextPagePos = it.getNextPageLength(durChapterPos)
             if (nextPagePos >= 0) {
                 hasNextPage = true
-                curTextChapter?.getPage(durPageIndex)?.removePageAloudSpan()
+                it.getPage(durPageIndex)?.removePageAloudSpan()
                 durChapterPos = nextPagePos
                 callBack?.upContent()
                 saveRead(true)
@@ -326,12 +326,14 @@ object ReadBook : CoroutineScope by MainScope() {
      */
     private fun curPageChanged(pageChanged: Boolean = false) {
         callBack?.pageChanged()
-        if (BaseReadAloudService.isRun && isLayoutAvailable) {
-            val scrollPageAnim = pageAnim() == 3
-            if (scrollPageAnim && pageChanged) {
-                ReadAloud.pause(appCtx)
-            } else {
-                readAloud(!BaseReadAloudService.pause)
+        curTextChapter?.let {
+            if (BaseReadAloudService.isRun && it.isCompleted) {
+                val scrollPageAnim = pageAnim() == 3
+                if (scrollPageAnim && pageChanged) {
+                    ReadAloud.pause(appCtx)
+                } else {
+                    readAloud(!BaseReadAloudService.pause)
+                }
             }
         }
         upReadTime()
@@ -343,7 +345,8 @@ object ReadBook : CoroutineScope by MainScope() {
      */
     fun readAloud(play: Boolean = true, startPos: Int = 0) {
         book ?: return
-        if (isLayoutAvailable) {
+        val textChapter = curTextChapter ?: return
+        if (textChapter.isCompleted) {
             ReadAloud.play(appCtx, play, startPos = startPos)
         }
     }
@@ -548,8 +551,6 @@ object ReadBook : CoroutineScope by MainScope() {
                             if (upContent) {
                                 callBack?.upContent(offset, resetPageOffset)
                             }
-                            curPageChanged()
-                            callBack?.contentLoadFinish()
                             available = true
                         }
                         if (upContent && isScroll) {
@@ -560,10 +561,8 @@ object ReadBook : CoroutineScope by MainScope() {
                         callBack?.onLayoutPageCompleted(index, page)
                     }
                     if (upContent) callBack?.upContent(offset, !available && resetPageOffset)
-                    if (!available) {
-                        curPageChanged()
-                        callBack?.contentLoadFinish()
-                    }
+                    curPageChanged()
+                    callBack?.contentLoadFinish()
                 }
 
                 -1 -> {
