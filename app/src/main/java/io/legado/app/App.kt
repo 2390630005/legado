@@ -84,7 +84,6 @@ class App : Application() {
                 val clearTime = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
                 appDb.searchBookDao.clearExpired(clearTime)
             }
-            appDb.bookDao.deleteNotShelfBook()
             RuleBigDataHelp.clearInvalid()
             BookHelp.clearInvalidCache()
             Backup.clearCache()
@@ -167,7 +166,7 @@ class App : Application() {
         val readAloudChannel = NotificationChannel(
             channelIdReadAloud,
             getString(R.string.read_aloud),
-            NotificationManager.IMPORTANCE_HIGH
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             enableLights(false)
             enableVibration(false)
