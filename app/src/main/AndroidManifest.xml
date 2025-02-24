@@ -24,7 +24,6 @@
     <application
         android:name=".App"
         android:allowBackup="true"
-        android:largeHeap="true"
         android:icon="@mipmap/ic_launcher"
         android:label="${app_name}"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -535,7 +534,9 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:mimeType="*/*" />
+            <data
+                android:mimeType="*/*"
+                android:scheme="*" />
         </intent>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />

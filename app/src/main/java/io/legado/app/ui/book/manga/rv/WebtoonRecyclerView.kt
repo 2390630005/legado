@@ -12,7 +12,6 @@ import android.view.animation.DecelerateInterpolator
 import androidx.core.animation.doOnEnd
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.findCenterViewPosition
 import kotlin.math.abs
 
@@ -40,17 +39,21 @@ class WebtoonRecyclerView @JvmOverloads constructor(
     private val listener = GestureListener()
     private val detector = Detector()
     private val mcRect = RectF()
-    private var mToucheMiddle: (() -> Unit)? = null
-
-    //起始点
-    private var startX: Float = 0f
-    private var startY: Float = 0f
+    private val blRect = RectF()
+    private val brRect = RectF()
 
     var doubleTapZoom = true
-
     var tapListener: ((MotionEvent) -> Unit)? = null
     var longTapListener: ((MotionEvent) -> Boolean)? = null
+    var disableMangaScaling = false
+    var disabledClickScroller = false
+
+    private var mToucheMiddle: (() -> Unit)? = null
     fun onToucheMiddle(init: () -> Unit) = apply { this.mToucheMiddle = init }
+    private var mNextPage: (() -> Unit)? = null
+    fun onNextPage(init: () -> Unit) = apply { this.mNextPage = init }
+    private var mPrevPage: (() -> Unit)? = null
+    fun onPrevPage(init: () -> Unit) = apply { this.mPrevPage = init }
 
     override fun onMeasure(widthSpec: Int, heightSpec: Int) {
         halfWidth = MeasureSpec.getSize(widthSpec) / 2
@@ -102,7 +105,9 @@ class WebtoonRecyclerView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        mcRect.set(width * 0.33f, height * 0.33f, width * 0.66f, height * 0.46f)
+        mcRect.set(width * 0.33f, height * 0.33f, width * 0.66f, height * 0.66f)
+        blRect.set(0f, height * 0.66f, width * 0.33f, height.toFloat())
+        brRect.set(width * 0.66f, height * 0.66f, width.toFloat(), height.toFloat())
     }
 
     private fun getPositionX(positionX: Float): Float {
@@ -184,6 +189,10 @@ class WebtoonRecyclerView @JvmOverloads constructor(
         return true
     }
 
+    fun resetZoom() {
+        zoom(currentScale, DEFAULT_RATE, x, 0f, y, 0f)
+    }
+
     private fun zoomScrollBy(dx: Int, dy: Int) {
         if (dx != 0) {
             x = getPositionX(x + dx)
@@ -240,10 +249,23 @@ class WebtoonRecyclerView @JvmOverloads constructor(
     inner class GestureListener : GestureDetectorWithLongTap.Listener() {
 
         override fun onSingleTapConfirmed(ev: MotionEvent): Boolean {
-            if (mcRect.contains(startX, startY)) {
-                mToucheMiddle?.invoke()
-            } else {
-                tapListener?.invoke(ev)
+            when {
+                mcRect.contains(ev.rawX, ev.rawY) -> {
+                    mToucheMiddle?.invoke()
+                }
+
+                blRect.contains(ev.rawX, ev.rawY) && !disabledClickScroller -> {
+                    mPrevPage?.invoke()
+                }
+
+                brRect.contains(ev.rawX, ev.rawY) && !disabledClickScroller-> {
+                    mNextPage?.invoke()
+                }
+
+                else -> {
+                    tapListener?.invoke(ev)
+
+                }
             }
             return false
         }
@@ -282,7 +304,6 @@ class WebtoonRecyclerView @JvmOverloads constructor(
         private var isZoomDragging = false
         var isDoubleTapping = false
         var isQuickScaling = false
-        val disableMangaScaling = AppConfig.disableMangaScaling
         override fun onTouchEvent(ev: MotionEvent): Boolean {
             val action = ev.actionMasked
             val actionIndex = ev.actionIndex
@@ -290,12 +311,8 @@ class WebtoonRecyclerView @JvmOverloads constructor(
             when (action) {
                 MotionEvent.ACTION_DOWN -> {
                     scrollPointerId = ev.getPointerId(0)
-                    val eveX = (ev.x + 0.5f)
-                    val eveY = (ev.y + 0.5f)
-                    downX = eveX.toInt()
-                    downY = eveY.toInt()
-                    startX = eveX
-                    startY = eveY
+                    downX = (ev.x + 0.5f).toInt()
+                    downY =(ev.y + 0.5f).toInt()
                 }
 
                 MotionEvent.ACTION_POINTER_DOWN -> {
@@ -306,7 +323,7 @@ class WebtoonRecyclerView @JvmOverloads constructor(
 
                 MotionEvent.ACTION_MOVE -> {
                     if (disableMangaScaling) {
-                        return false
+                        return super.onTouchEvent(ev)
                     }
                     if (isDoubleTapping && isQuickScaling) {
                         return true
