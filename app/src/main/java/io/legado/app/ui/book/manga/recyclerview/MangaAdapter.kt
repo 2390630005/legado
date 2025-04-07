@@ -1,6 +1,5 @@
 package io.legado.app.ui.book.manga.recyclerview
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -17,7 +16,6 @@ import androidx.viewbinding.ViewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.ListPreloader.PreloadModelProvider
 import com.bumptech.glide.RequestBuilder
-import io.legado.app.R
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter.Companion.TYPE_FOOTER_VIEW
 import io.legado.app.databinding.BookComicLoadingRvBinding
@@ -28,8 +26,6 @@ import io.legado.app.model.ReadManga
 import io.legado.app.ui.book.manga.config.MangaColorFilterConfig
 import io.legado.app.ui.book.manga.entities.MangaPage
 import io.legado.app.ui.book.manga.entities.ReaderLoading
-import io.legado.app.utils.getCompatDrawable
-import java.util.Collections
 
 
 class MangaAdapter(private val context: Context) :
@@ -215,28 +211,27 @@ class MangaAdapter(private val context: Context) :
         }
     }
 
-    override fun getPreloadItems(position: Int): MutableList<Any> {
-        if (getItems().isEmpty()) return Collections.emptyList()
-        if (position >= getItems().size) return Collections.emptyList()
+    override fun getPreloadItems(position: Int): List<Any> {
+        if (isEmpty() || position >= getItems().size) {
+            return emptyList()
+        }
         return getItems().subList(position, position + 1)
     }
 
     override fun getPreloadRequestBuilder(item: Any): RequestBuilder<*>? {
         if (item is MangaPage) {
-            return BookCover.loadManga(
+            return BookCover.preloadManga(
                 context,
                 item.mImageUrl,
                 sourceOrigin = ReadManga.book?.origin,
-                manga = true,
-                useDefaultCover = context.getCompatDrawable(R.color.book_ant_10)
             )
         }
         return null
     }
 
-    @SuppressLint("NotifyDataSetChanged")
     fun setMangaImageColorFilter(config: MangaColorFilterConfig) {
         mConfig = config
         notifyItemRangeChanged(0, itemCount)
     }
+
 }
