@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.view.MotionEvent
 import android.view.SubMenu
 import androidx.activity.viewModels
 import androidx.appcompat.widget.PopupMenu
@@ -33,19 +32,15 @@ import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.ACache
 import io.legado.app.utils.applyTint
 import io.legado.app.utils.dpToPx
-import io.legado.app.utils.hideSoftInput
 import io.legado.app.utils.isAbsUrl
 import io.legado.app.utils.launch
-import io.legado.app.utils.readText
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.setEdgeEffectColor
 import io.legado.app.utils.share
-import io.legado.app.utils.shouldHideSoftInput
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.showHelp
 import io.legado.app.utils.splitNotBlank
 import io.legado.app.utils.startActivity
-import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.transaction
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers.IO
@@ -76,19 +71,11 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
     private var groupMenu: SubMenu? = null
     private val qrCodeResult = registerForActivityResult(QrCodeResult()) {
         it ?: return@registerForActivityResult
-        showDialogFragment(
-            ImportRssSourceDialog(it)
-        )
+        showDialogFragment(ImportRssSourceDialog(it))
     }
     private val importDoc = registerForActivityResult(HandleFileContract()) {
-        kotlin.runCatching {
-            it.uri?.readText(this)?.let {
-                showDialogFragment(
-                    ImportRssSourceDialog(it)
-                )
-            }
-        }.onFailure {
-            toastOnUi("readTextError:${it.localizedMessage}")
+        it.uri?.let { uri ->
+            showDialogFragment(ImportRssSourceDialog(uri.toString()))
         }
     }
     private val exportResult = registerForActivityResult(HandleFileContract()) {
@@ -115,20 +102,6 @@ class RssSourceActivity : VMBaseActivity<ActivityRssSourceBinding, RssSourceView
         initGroupFlow()
         upSourceFlow()
         initSelectActionBar()
-    }
-
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (ev.action == MotionEvent.ACTION_DOWN) {
-            currentFocus?.let {
-                if (it.shouldHideSoftInput(ev)) {
-                    it.post {
-                        it.clearFocus()
-                        it.hideSoftInput()
-                    }
-                }
-            }
-        }
-        return super.dispatchTouchEvent(ev)
     }
 
     override fun onCompatCreateOptionsMenu(menu: Menu): Boolean {

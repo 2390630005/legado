@@ -353,7 +353,7 @@ class ReadBookActivity : BaseReadBookActivity(),
         networkChangedListener.register()
         networkChangedListener.onNetworkChanged = {
             // 当网络是可用状态且无需初始化时同步进度（初始化中已有同步进度逻辑）
-            if (AppConfig.syncBookProgressPlus && NetworkUtils.isAvailable() && !justInitData) {
+            if (AppConfig.syncBookProgressPlus && NetworkUtils.isAvailable() && !justInitData && ReadBook.inBookshelf) {
                 ReadBook.syncProgress({ progress -> sureNewProgress(progress) })
             }
         }
@@ -367,12 +367,14 @@ class ReadBookActivity : BaseReadBookActivity(),
         ReadBook.cancelPreDownloadTask()
         unregisterReceiver(timeBatteryReceiver)
         upSystemUiVisibility()
-        if (!BuildConfig.DEBUG) {
+        if (!BuildConfig.DEBUG && ReadBook.inBookshelf) {
             if (AppConfig.syncBookProgressPlus) {
                 ReadBook.syncProgress()
             } else {
                 ReadBook.uploadProgress()
             }
+        }
+        if (!BuildConfig.DEBUG) {
             Backup.autoBack(this)
         }
         justInitData = false
@@ -440,12 +442,11 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
         }
         lifecycleScope.launch {
-            menu.findItem(R.id.menu_get_progress)?.isVisible = withContext(IO) {
+            val show = ReadBook.inBookshelf && withContext(IO) {
                 AppWebDav.isOk
             }
-            menu.findItem(R.id.menu_cover_progress)?.isVisible = withContext(IO) {
-                AppWebDav.isOk
-            }
+            menu.findItem(R.id.menu_get_progress)?.isVisible = show
+            menu.findItem(R.id.menu_cover_progress)?.isVisible = show
         }
     }
 
@@ -598,7 +599,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
 
             R.id.menu_cover_progress -> ReadBook.book?.let {
-                ReadBook.uploadProgress { toastOnUi(R.string.upload_book_success) }
+                ReadBook.uploadProgress(true) { toastOnUi(R.string.upload_book_success) }
             }
 
             R.id.menu_same_title_removed -> {
@@ -1329,8 +1330,20 @@ class ReadBookActivity : BaseReadBookActivity(),
                 ReadAloud.upReadAloudClass()
                 val scrollPageAnim = ReadBook.pageAnim() == 3
                 if (scrollPageAnim) {
-                    val startPos = binding.readView.getCurPagePosition()
-                    ReadBook.readAloud(startPos = startPos)
+                    val pos = binding.readView.getReadAloudPos()
+                    if (pos != null) {
+                        val (index, line) = pos
+                        if (ReadBook.durChapterIndex != index) {
+                            ReadBook.openChapter(index, line.chapterPosition, false) {
+                                ReadBook.readAloud(startPos = line.pagePosition)
+                            }
+                        } else {
+                            ReadBook.durChapterPos = line.chapterPosition
+                            ReadBook.readAloud(startPos = line.pagePosition)
+                        }
+                    } else {
+                        ReadBook.readAloud()
+                    }
                 } else {
                     ReadBook.readAloud()
                 }
@@ -1340,8 +1353,20 @@ class ReadBookActivity : BaseReadBookActivity(),
                 val scrollPageAnim = ReadBook.pageAnim() == 3
                 if (scrollPageAnim && pageChanged) {
                     pageChanged = false
-                    val startPos = binding.readView.getCurPagePosition()
-                    ReadBook.readAloud(startPos = startPos)
+                    val pos = binding.readView.getReadAloudPos()
+                    if (pos != null) {
+                        val (index, line) = pos
+                        if (ReadBook.durChapterIndex != index) {
+                            ReadBook.openChapter(index, line.chapterPosition, false) {
+                                ReadBook.readAloud(startPos = line.pagePosition)
+                            }
+                        } else {
+                            ReadBook.durChapterPos = line.chapterPosition
+                            ReadBook.readAloud(startPos = line.pagePosition)
+                        }
+                    } else {
+                        ReadBook.readAloud()
+                    }
                 } else {
                     ReadAloud.resume(this)
                 }
@@ -1644,6 +1669,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             lifecycleScope.launch(IO) {
                 if (BaseReadAloudService.isPlay()) {
                     ReadBook.curTextChapter?.let { textChapter ->
+                        ReadBook.durChapterPos = chapterStart
                         val pageIndex = ReadBook.durPageIndex
                         val aloudSpanStart = chapterStart - textChapter.getReadLength(pageIndex)
                         textChapter.getPage(pageIndex)
